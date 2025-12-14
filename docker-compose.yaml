@@ -1,0 +1,119 @@
+version: "3.8"
+
+x-airflow-common: &airflow-common
+  image: apache/airflow:2.11.0
+  env_file:
+    - .env
+  volumes:
+    - ./dags:/opt/airflow/dags
+    - ./logs:/opt/airflow/logs
+    - ./plugins:/opt/airflow/plugins
+    - ./config:/opt/airflow/config
+  user: "${AIRFLOW_UID}:0"
+  depends_on:
+    postgres:
+      condition: service_healthy
+
+services:
+
+  postgres:
+    image: postgres:15
+    environment:
+      POSTGRES_USER: airflow
+      POSTGRES_PASSWORD: airflow
+      POSTGRES_DB: airflow
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD", "pg_isready", "-U", "airflow"]
+      interval: 5s
+      retries: 5
+    restart: always
+
+  airflow-init:
+    <<: *airflow-common
+    depends_on:
+      minio-init:
+          condition: service_completed_successfully
+    command: >
+      bash -c "      
+      airflow db migrate &&
+
+      airflow connections add minio_s3 \
+      --conn-type aws \
+      --conn-login \"$AIRFLOW_MINIO_USER_ACCESS_KEY\" \
+      --conn-password \"$AIRFLOW_MINIO_USER_SECRET_KEY\" \
+      --conn-extra '{\"endpoint_url\":\"'$S3_ENDPOINT_URL'\",\"region_name\":\"'$AWS_DEFAULT_REGION'\"}' &&
+
+      airflow variables set S3_BUCKET \"$S3_BUCKET\" && 
+
+      airflow users create \
+      --username airflow \
+      --password airflow \
+      --firstname Kamil \
+      --lastname Omashev \
+      --role Admin \
+      --email omashevkamilexample@gmail.com   
+      "
+    restart: "no"
+  
+
+
+  airflow-webserver:
+    <<: *airflow-common
+    command: webserver
+    ports:
+      - "8080:8080"
+    restart: always
+
+  airflow-scheduler:
+    <<: *airflow-common
+    command: scheduler
+    restart: always
+
+  minio:
+    image: minio/minio:RELEASE.2025-04-22T22-12-26Z
+    command: server /data --console-address ":9001"
+    environment:
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD}
+      MINIO_ACCESS_KEY: uoLEWHH8czJvcoxzIjzA
+      MINIO_SECRET_KEY: PDGFkp1T0Bm87GKT6YD0lktzqPNIIf1ut7rz1Ola
+    volumes:
+      - minio_data:/data
+    ports:
+      - "9000:9000"
+      - "9001:9001"
+    restart: always
+    healthcheck:
+      test: ["CMD", "curl", "-f", "${S3_ENDPOINT_URL}/minio/health/live"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 20s
+  
+
+  minio-init:
+    image: minio/mc:latest
+    depends_on:
+      minio:
+        condition: service_healthy
+
+    entrypoint: >
+      /bin/sh -c "
+      set -e &&
+      test -n \"${AIRFLOW_MINIO_USER}\" &&
+      test -n \"${AIRFLOW_MINIO_PASSWORD}\" &&   
+       
+      mc alias set local ${S3_ENDPOINT_URL} ${MINIO_ROOT_USER} ${MINIO_ROOT_PASSWORD} &&
+
+      mc mb --ignore-existing local/${S3_BUCKET} &&
+
+      mc admin user add local ${AIRFLOW_MINIO_USER} ${AIRFLOW_MINIO_PASSWORD} &&
+      mc admin policy attach local readwrite --user ${AIRFLOW_MINIO_USER} &&
+      mc admin accesskey create local airflow_user --access-key ${AIRFLOW_MINIO_USER_ACCESS_KEY} --secret-key ${AIRFLOW_MINIO_USER_SECRET_KEY}      
+      "
+
+volumes:
+  postgres_data:
+  minio_data:
