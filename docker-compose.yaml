@@ -57,8 +57,6 @@ services:
       "
     restart: "no"
   
-
-
   airflow-webserver:
     <<: *airflow-common
     command: webserver
@@ -113,6 +111,31 @@ services:
       mc admin policy attach local readwrite --user ${AIRFLOW_MINIO_USER} &&
       mc admin accesskey create local airflow_user --access-key ${AIRFLOW_MINIO_USER_ACCESS_KEY} --secret-key ${AIRFLOW_MINIO_USER_SECRET_KEY}      
       "
+  spark:
+    build:
+      context: ./spark
+      dockerfile: dockerfile
+    image: spark-with-s3:3.5.7
+    container_name: spark
+    hostname: spark
+    networks:
+      - default
+    volumes:
+      - ./spark/spark_jobs:/opt/spark_jobs
+    environment:
+      SPARK_LOCAL_IP: spark
+      SPARK_DRIVER_MEMORY: 10g
+      SPARK_EXECUTOR_MEMORY: 10g
+      SPARK_EXECUTOR_CORES: 10
+    deploy:
+      resources:
+        limits:
+          cpus: "10.0"
+          memory: 10g
+        reservations:
+          cpus: "4.0"
+          memory: 4g
+    command: ["sleep", "infinity"]
 
 volumes:
   postgres_data:
