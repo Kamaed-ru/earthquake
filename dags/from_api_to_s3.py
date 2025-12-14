@@ -26,7 +26,7 @@ SHORT_DESCRIPTION = "SHORT DESCRIPTION"
 
 args = {
     "owner": OWNER,
-    "start_date": pendulum.datetime(2025, 5, 1, tz="Europe/Moscow"),
+    "start_date": pendulum.datetime(2025, 12, 1, tz="Europe/Moscow"),
     "catchup": True,
     "retries": 3,
     "retry_delay": pendulum.duration(minutes=5),
@@ -66,7 +66,7 @@ def fetch_and_upload(**context):
 
     s3.load_bytes(
         bytes_data=buffer.read(),
-        key=f"earthquakes/date={start_date}/earthquakes_{start_date}.csv.gz",
+        key=f"raw_csv/date_{start_date}/earthquakes_{start_date}.csv.gz",
         bucket_name=S3_BUCKET,
         replace=True,
     )
