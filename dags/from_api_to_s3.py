@@ -3,7 +3,6 @@ from airflow.models import Variable
 from airflow.operators.empty import EmptyOperator
 from airflow.operators.python import PythonOperator
 from airflow.providers.amazon.aws.hooks.s3 import S3Hook
-from datetime import datetime
 import pendulum
 import logging
 import requests
@@ -80,9 +79,9 @@ with DAG(
     default_args=args,
     tags=["extract", "api", "minio"],
     description=SHORT_DESCRIPTION,
-    concurrency=1,
-    max_active_tasks=1,
-    max_active_runs=1,
+    concurrency=3,
+    max_active_tasks=3,
+    max_active_runs=3,
 ) as dag:
     start = EmptyOperator(
         task_id="start",
