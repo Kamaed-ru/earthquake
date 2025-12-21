@@ -5,4 +5,10 @@ docker compose build
 docker compose up -d
 
 
-docker exec spark-master /opt/spark/bin/spark-submit --master spark://spark-master:7077 /opt/spark_jobs/parquet_to_postgres_job.py 2025-12-01
+airflow - http://localhost:8080/
+minio - http://localhost:9001/
+spark - http://localhost:8081/
+jupyter - http://localhost:8888/
+postgres_dwh - localhost:5433
+
+
