@@ -65,6 +65,8 @@ services:
       bash -c "
       airflow db migrate &&
 
+      airflow variables set S3_BUCKET \"$S3_BUCKET\" &&
+
       airflow users create \
       --username airflow \
       --password airflow \
@@ -77,9 +79,7 @@ services:
       --conn-type aws \
       --conn-login \"$MINIO_USER_ACCESS_KEY\" \
       --conn-password \"$MINIO_USER_SECRET_KEY\" \
-      --conn-extra '{\"endpoint_url\":\"'$S3_ENDPOINT_URL'\",\"region_name\":\"'$AWS_DEFAULT_REGION'\"}' &&
-
-      airflow variables set S3_BUCKET \"$S3_BUCKET\"    
+      --conn-extra '{\"endpoint_url\":\"'$S3_ENDPOINT_URL'\",\"region_name\":\"'$AWS_DEFAULT_REGION'\"}'
       "
     restart: "no"
   
@@ -167,8 +167,8 @@ services:
     depends_on:
       - spark-master
     environment:
-      SPARK_WORKER_CORES: 4
-      SPARK_WORKER_MEMORY: 8g
+      SPARK_WORKER_CORES: 1
+      SPARK_WORKER_MEMORY: 2g
 
   postgres_dwh:
     image: postgres:15

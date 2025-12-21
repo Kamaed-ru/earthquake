@@ -8,6 +8,7 @@ import logging
 import requests
 import gzip
 import io
+import os
 
 # Конфигурация DAG
 OWNER = "omash"
@@ -23,9 +24,12 @@ LONG_DESCRIPTION = """
 
 SHORT_DESCRIPTION = "SHORT DESCRIPTION"
 
+START_DATE = os.getenv("DAGS_START_DATE", "2025-12-01")
+START_DATE = pendulum.parse(START_DATE).replace(tz="Europe/Moscow")
+
 args = {
     "owner": OWNER,
-    "start_date": pendulum.datetime(2025, 12, 1, tz="Europe/Moscow"),
+    "start_date": START_DATE,
     "catchup": True,
     "retries": 3,
     "retry_delay": pendulum.duration(minutes=5),
