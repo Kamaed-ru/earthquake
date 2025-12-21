@@ -16,7 +16,7 @@ LONG_DESCRIPTION = """
 SHORT_DESCRIPTION = "SHORT DESCRIPTION"
 
 START_DATE = os.getenv("DAGS_START_DATE", "2025-12-01")
-START_DATE = pendulum.parse(START_DATE).replace(tz="Europe/Moscow")
+START_DATE = pendulum.parse(START_DATE).in_timezone("Europe/Moscow")
 
 args = {
     "owner": OWNER,
