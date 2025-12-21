@@ -2,9 +2,6 @@ version: "3.8"
 
 x-airflow-common: &airflow-common
   image: airflow-env:2.11.0
-  build:
-    context: ./airflow
-    dockerfile: Dockerfile
   env_file:
     - .env
   volumes:
@@ -20,9 +17,6 @@ x-airflow-common: &airflow-common
 
 x-spark-common: &spark-common
   image: spark-s3:3.5.7
-  build:
-    context: ./spark
-    dockerfile: Dockerfile
   volumes:
     - ./spark/spark_jobs:/opt/spark_jobs
   env_file:
@@ -31,6 +25,20 @@ x-spark-common: &spark-common
     - default
 
 services:
+
+  airflow-builder:
+    image: airflow-env:2.11.0
+    build:
+      context: ./airflow
+      dockerfile: Dockerfile
+    command: "echo airflow built"
+
+  spark-builder:
+    image: spark-s3:3.5.7
+    build:
+      context: ./spark
+      dockerfile: Dockerfile
+    command: "echo spark built"
 
   postgres:
     image: postgres:15
@@ -144,6 +152,7 @@ services:
     ports:
       - "7077:7077"
       - "8081:8080"
+      - "8888:8888"
     environment:
       SPARK_MASTER_HOST: spark-master
       SPARK_MASTER_PORT: 7077
@@ -161,6 +170,25 @@ services:
       SPARK_WORKER_CORES: 4
       SPARK_WORKER_MEMORY: 8g
 
+  postgres_dwh:
+    image: postgres:15
+    container_name: postgres_dwh
+    environment:
+      POSTGRES_USER: dwh_user
+      POSTGRES_PASSWORD: dwh_password
+      POSTGRES_DB: postgres
+    volumes:
+      - postgres_dwh_data:/var/lib/postgresql/data
+      - ./postgres_dwh_init:/docker-entrypoint-initdb.d  # <-- Автоинициализация
+    ports:
+      - "5433:5432"
+    healthcheck:
+      test: ["CMD", "pg_isready", "-U", "dwh_user"]
+      interval: 5s
+      retries: 5
+    restart: always
+
 volumes:
   postgres_data:
   minio_data:
+  postgres_dwh_data:

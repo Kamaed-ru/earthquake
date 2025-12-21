@@ -1,12 +1,11 @@
 from airflow import DAG
-from airflow.operators.bash import BashOperator
 from airflow.operators.empty import EmptyOperator
+from airflow.operators.bash import BashOperator
 from airflow.sensors.external_task import ExternalTaskSensor
 import pendulum
 
-# Конфигурация DAG
 OWNER = "omash"
-DAG_ID = "csv_to_parquet"
+DAG_ID = "parquet_to_postgres"
 
 LONG_DESCRIPTION = """
 # LONG DESCRIPTION
@@ -26,39 +25,34 @@ with DAG(
     dag_id=DAG_ID,
     schedule_interval="0 10 * * *",
     default_args=args,
-    tags=["transform", "spark", "minio"],
+    tags=["dwh", "spark", "postgres"],
     description=SHORT_DESCRIPTION,
     concurrency=3,
     max_active_tasks=3,
     max_active_runs=3,
 ) as dag:
-    
-    start = EmptyOperator(
-        task_id="start",
-    )
-    
-    sensor_on_raw_layer = ExternalTaskSensor(
-        task_id="sensor_on_raw_layer",
-        external_dag_id="from_api_to_s3",
+
+    start = EmptyOperator(task_id="start")
+
+    wait_for_parquet = ExternalTaskSensor(
+        task_id="wait_for_parquet",
+        external_dag_id="csv_to_parquet",   # <-- твой предыдущий DAG
         allowed_states=["success"],
         mode="reschedule",
-        timeout=1800,  # длительность работы сенсора
-        poke_interval=60,  # частота проверки
+        poke_interval=60,    # раз в минуту
+        timeout=1800,        # 30 минут
     )
-    
-    spark_csv_to_parquet = BashOperator(
-        task_id="spark_csv_to_parquet",
+
+    spark_load_to_pg = BashOperator(
+        task_id="spark_load_to_pg",
         bash_command="""
         docker exec spark-master \
         /opt/spark/bin/spark-submit \
           --master spark://spark-master:7077 \
-          /opt/spark_jobs/csv_to_parquet_job.py {{ ds }}
+          /opt/spark_jobs/parquet_to_postgres_job.py {{ ds }}
         """
     )
 
-    end = EmptyOperator(
-        task_id="end",
-    )
-    
-    start >> sensor_on_raw_layer >> spark_csv_to_parquet >> end
-    
+    end = EmptyOperator(task_id="end")
+
+    start >> wait_for_parquet >> spark_load_to_pg >> end
